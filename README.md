@@ -12,9 +12,12 @@ This tool aims to automatically solve puzzles from the game [Kami](http://www.st
     - From above image, find median distance, use that.
 - [x] Pick out a colour from inside of each square
 
-    ![](./media/ex.png)
+    ![](./media/pick.png)
 
 - [ ] Accurately cluster those
+
+    ![](./media/ex.png)
+
 - [ ] Build neighbour graph
 - [ ] Solve graph (bruteforce)
 
