@@ -5,10 +5,11 @@ This tool aims to automatically solve puzzles from the game [Kami](http://www.st
 ## Process
 
 - [x] Detect rectangles
-- [x] Figure out grid pattern
 
     ![](./media/rect.png)
 
+- [x] Figure out grid pattern
+    - From above image, find median distance, use that.
 - [x] Pick out a colour from inside of each square
 
     ![](./media/ex.png)
