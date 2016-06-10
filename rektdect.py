@@ -1,4 +1,5 @@
 import cv2
+import sys
 import numpy as np
 from matplotlib import pyplot as plt
 from sklearn.cluster import KMeans
@@ -60,9 +61,9 @@ def get_inside_boxes(image, v, h):
     height, width, channels = img.shape
     data = []
     hsv_img = cv2.cvtColor(image, cv2.COLOR_RGB2HSV)
-    for i in range(0, int(height), int(h)):
+    for i in range(0, int(height - h), int(h)):
         row = []
-        for j in range(0, int(width), int(v)):
+        for j in range(0, int(width - v), int(v)):
             x = int(i + v/2)
             y = int(j + h/2)
             row.append(hsv_img[x][y])
@@ -81,23 +82,26 @@ def binData(data, bins=4):
     w = data.shape[0]
     h = data.shape[1]
     image = data.reshape((w * h, 3))
-    clt = KMeans(n_clusters=4)
+    clt = KMeans(n_clusters=5)
     fit = clt.fit_predict(image)
+    # quant = clt.cluster_centers_.astype("uint8")[fit]
+    # return quant.reshape((w, h, 3))
     return fit.reshape((w, h))
 
 
-img = cv2.imread("test2.png")
+img = cv2.imread(sys.argv[1])
 img = cv2.cvtColor(img, cv2.COLOR_BGR2RGB)
 (v, h) = griddect(img)
 
 color_data = get_inside_boxes(gauss(img), v, h)
-bin_color_data = binData(color_data)
+bin_color_data = binData(color_data, bins=int(sys.argv[2]))
 
 colors = [
     (255, 0, 255),
     (255, 255, 0),
     (0, 0, 255),
     (0, 255, 0),
+    (0, 255, 255),
 ]
 
 if debug:
