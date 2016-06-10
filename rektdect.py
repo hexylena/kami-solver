@@ -1,4 +1,5 @@
 import cv2
+import argparse
 import sys
 import numpy as np
 from matplotlib import pyplot as plt
@@ -9,10 +10,9 @@ import scipy.ndimage
 
 font = cv2.FONT_HERSHEY_SIMPLEX
 np.set_printoptions(linewidth=220)
-debug = True
 
 
-def griddect(img):
+def griddect(img, debug=False):
     gray = cv2.cvtColor(img,  cv2.COLOR_RGB2GRAY)
     edges = cv2.Canny(gray, 50, 150, apertureSize = 3)
 
@@ -89,13 +89,6 @@ def binData(data, bins=4):
     return fit.reshape((w, h))
 
 
-img = cv2.imread(sys.argv[1])
-img = cv2.cvtColor(img, cv2.COLOR_BGR2RGB)
-(v, h) = griddect(img)
-
-color_data = get_inside_boxes(gauss(img), v, h)
-bin_color_data = binData(color_data, bins=int(sys.argv[2]))
-
 colors = [
     (255, 0, 255),
     (255, 255, 0),
@@ -104,15 +97,32 @@ colors = [
     (0, 255, 255),
 ]
 
-if debug:
-    for i in range(bin_color_data.shape[0]):
-        for j in range(bin_color_data.shape[1]):
-            x = i * v + v / 2
-            y = j * h + h / 2
-            z = bin_color_data[i][j]
-
-            cv2.circle(img, (int(y), int(x)), 4, colors[z], -1)
+if __name__ == '__main__':
+    parser = argparse.ArgumentParser()
+    parser.add_argument('img', help="Path to image")
+    parser.add_argument('--bins', type=int, help="Number of bins", default=3)
+    parser.add_argument('--debug', action='store_true', help="Enable debug mode")
 
 
-    plt.imshow(img)
-    plt.show()
+    args = parser.parse_args()
+
+    img = cv2.imread(args.img)
+    img = cv2.cvtColor(img, cv2.COLOR_BGR2RGB)
+    (v, h) = griddect(img, debug=args.debug)
+
+    color_data = get_inside_boxes(gauss(img), v, h)
+    bin_color_data = binData(color_data, bins=args.bins)
+
+    if args.debug:
+        for i in range(bin_color_data.shape[0]):
+            for j in range(bin_color_data.shape[1]):
+                x = i * v + v / 2
+                y = j * h + h / 2
+                z = bin_color_data[i][j]
+
+                cv2.circle(img, (int(y), int(x)), 4, colors[z], -1)
+
+
+        plt.imshow(img)
+        plt.show()
+
