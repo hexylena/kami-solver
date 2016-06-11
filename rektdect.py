@@ -107,7 +107,7 @@ def getNeighbours(point, dims):
         yield (x, y+1)
 
 
-def floodFromPoint(data, localGroup, point, thresh=50, dims=(0, 0)):
+def floodFromPoint(data, localGroup, point, thresh=0, dims=(0, 0)):
     if localGroup[point]:
         return
 
@@ -121,7 +121,8 @@ def floodFromPoint(data, localGroup, point, thresh=50, dims=(0, 0)):
         if dist < thresh:
             floodFromPoint(data, localGroup, neigh, thresh=thresh, dims=dims)
 
-def customBin(data):
+def customBin(data, l1thresh=0):
+    print 'Binning'
     w = data.shape[0]
     h = data.shape[1]
     outputData = np.zeros((w, h))
@@ -133,7 +134,7 @@ def customBin(data):
         # if debug: print 'Group %s' % groupId
         start = undecidedPlaces[0]
         localGroup = np.zeros((w, h), dtype=bool)
-        floodFromPoint(data, localGroup, start, dims=(w, h), thresh=30)
+        floodFromPoint(data, localGroup, start, dims=(w, h), thresh=l1thresh)
         # localGroup is now populated
         for i in range(w):
             for j in range(h):
@@ -144,7 +145,8 @@ def customBin(data):
         groupId += 1
     return outputData
 
-def reduceBins(binnedData, data, thresh=30):
+def reduceBins(binnedData, data, l2thresh=30):
+    print 'Reducing'
     w = binnedData.shape[0]
     h = binnedData.shape[1]
     maxVal = np.max(binnedData)
@@ -165,7 +167,7 @@ def reduceBins(binnedData, data, thresh=30):
                         map(int, data[element])
                      ) for fBelem in finalBins[key]
                 ])
-                if matchScore <  thresh:
+                if matchScore < l2thresh:
                     hit = key
                 # hit = np.min()
         if not hit:
@@ -182,8 +184,8 @@ def reduceBins(binnedData, data, thresh=30):
     return outputData
 
 
-def binData(data, bins=4):
-    return reduceBins(customBin(data), data)
+def binData(data, bins=4, l1thresh=0, l2thresh=0):
+    return reduceBins(customBin(data, l1thresh=l1thresh), data, l2thresh=l2thresh)
 
 
 colors = [
@@ -199,6 +201,9 @@ if __name__ == '__main__':
     parser.add_argument('img', help="Path to image")
     parser.add_argument('--bins', type=int, help="Number of bins", default=3)
     parser.add_argument('--debug', action='store_true', help="Enable debug mode")
+    parser.add_argument('--defaultSize', action='store_true', help="Override size detection with default 16 tall 10 wide")
+    parser.add_argument('--l1thresh', type=int, default=40)
+    parser.add_argument('--l2thresh', type=int, default=50)
     parser.add_argument('-vo', type=int, help="Override v", default=0)
     parser.add_argument('-ho', type=int, help="Oherride h", default=0)
 
@@ -207,19 +212,39 @@ if __name__ == '__main__':
 
     img = cv2.imread(args.img)
     img = cv2.cvtColor(img, cv2.COLOR_BGR2RGB)
-    (v, h) = griddect(img, debug=args.debug)
-    print 'Detected grid as v=%s, h=%s' % (v, h)
-    if args.vo != 0:
-        v = args.vo
-    if args.ho != 0:
-        h = args.ho
+
+    if not args.defaultSize:
+        (v, h) = griddect(img, debug=args.debug)
+        print 'Detected grid as v=%s, h=%s' % (v, h)
+        if args.vo != 0:
+            v = args.vo
+        if args.ho != 0:
+            h = args.ho
+    else:
+        height, width, channels = img.shape
+        if width > height:
+            h = np.round(float(height) / 10)
+            v = np.round(float(width) / 16)
+        else:
+            h = np.round(float(height) / 16)
+            v = np.round(float(width) / 10)
+
+        h = int(h)
+        v = int(v)
+
+    print width, height, h, v
 
     color_data = get_inside_boxes(gauss(img, size=20), v, h)
-    bin_color_data = binData(color_data, bins=args.bins)
+    bin_color_data = binData(color_data, bins=args.bins, l1thresh=args.l1thresh, l2thresh=args.l2thresh)
 
     if args.debug:
         for i in range(bin_color_data.shape[0]):
+            cv2.line(img, (i * v, 0), (i * v, height), (50, 50, 255), 2)
+
             for j in range(bin_color_data.shape[1]):
+                if j == 0:
+                    cv2.line(img, (0, i * v), (width, i * v), (50, 50, 255), 2)
+
                 y = i * v + v / 2
                 x = j * h + h / 2
                 z = bin_color_data[i][j]
@@ -229,9 +254,7 @@ if __name__ == '__main__':
                 pos = (int(x), int(y))
                 # cv2.circle(img, pos, 7, colors[z], -1)
                 # q = '.'.join([str(int(x)) for x in color_data[i][j]])
-                cv2.putText(img, str(int(z)), pos, font, 2, (0,0,0))
-
-
+                cv2.putText(img, str(int(z)), pos, font, 1, (0,0,0))
 
         plt.imshow(img)
         plt.show()
