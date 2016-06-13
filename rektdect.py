@@ -7,6 +7,7 @@ from sklearn.cluster import KMeans
 import matplotlib
 import scipy.spatial.distance as distance
 import scipy.ndimage
+from kami import toArrays
 
 font = cv2.FONT_HERSHEY_SIMPLEX
 np.set_printoptions(linewidth=220)
@@ -121,8 +122,8 @@ def floodFromPoint(data, localGroup, point, thresh=0, dims=(0, 0)):
         if dist < thresh:
             floodFromPoint(data, localGroup, neigh, thresh=thresh, dims=dims)
 
+
 def customBin(data, l1thresh=0):
-    print 'Binning'
     w = data.shape[0]
     h = data.shape[1]
     outputData = np.zeros((w, h))
@@ -145,43 +146,54 @@ def customBin(data, l1thresh=0):
         groupId += 1
     return outputData
 
+
 def reduceBins(binnedData, data, l2thresh=30):
-    print 'Reducing'
     w = binnedData.shape[0]
     h = binnedData.shape[1]
     maxVal = np.max(binnedData)
 
+    # Keyed on [color][binIdx]
     finalBins = {}
     for i in range (1, int(maxVal) + 1):
-        cG = zip(*np.where(binnedData == i))
+        currentGroup = zip(*np.where(binnedData == i))
 
         hit = False
         # For each element in our current group
-        for element in cG:
-            # Compare to elements in finalBins
-            for key in finalBins:
-                # Get all of their distances
+        for element in currentGroup:
+            # We want to figure out if it matches an existing colour, or if
+            # it's a new one. So we start by getting all existing groups of a
+            # given colour:
+            for fbColor in finalBins.keys():
+                pointsInColourGroup = []
+                # Get all the groups
+                for grouping in finalBins[fbColor]:
+                    if grouping == '_meta_': continue
+                    pointsInColourGroup += finalBins[fbColor][grouping]
+
                 matchScore = np.min([
                     distance.euclidean(
-                        map(int, data[fBelem]),
+                        map(int, data[point]),
                         map(int, data[element])
-                     ) for fBelem in finalBins[key]
+                     ) for point in pointsInColourGroup
                 ])
                 if matchScore < l2thresh:
-                    hit = key
-                # hit = np.min()
+                    hit = (fbColor, data[element])
+                    break
+
+            if hit: break
+
         if not hit:
-            finalBins[i] = cG
+            # We start a new group
+            finalBins[len(finalBins.keys())] = {
+                0: currentGroup,
+                '_meta_': data[currentGroup[0]]
+            }
         else:
-            finalBins[hit] += cG
+            (a, b) = hit
+            finalBins[a][len(finalBins[a])] = currentGroup
+            finalBins[a]['_meta_'] = b
 
-    outputData = np.zeros((w, h))
-
-    for idx, key in enumerate(finalBins):
-        for point in finalBins[key]:
-            outputData[point] = idx
-
-    return outputData
+    return toArrays(finalBins, w, h)
 
 
 def binData(data, bins=4, l1thresh=0, l2thresh=0):
@@ -215,7 +227,8 @@ if __name__ == '__main__':
 
     if not args.defaultSize:
         (v, h) = griddect(img, debug=args.debug)
-        print 'Detected grid as v=%s, h=%s' % (v, h)
+        if debug:
+            print 'Detected grid as v=%s, h=%s' % (v, h)
         if args.vo != 0:
             v = args.vo
         if args.ho != 0:
@@ -232,29 +245,35 @@ if __name__ == '__main__':
         h = int(h)
         v = int(v)
 
-    print width, height, h, v
-
     color_data = get_inside_boxes(gauss(img, size=20), v, h)
-    bin_color_data = binData(color_data, bins=args.bins, l1thresh=args.l1thresh, l2thresh=args.l2thresh)
+    binnedColours, binnedGroups = binData(color_data, bins=args.bins, l1thresh=args.l1thresh, l2thresh=args.l2thresh)
 
-    if args.debug:
-        for i in range(bin_color_data.shape[0]):
-            cv2.line(img, (i * v, 0), (i * v, height), (50, 50, 255), 2)
+    with open('out.c.txt', 'w') as handle:
+        for row in binnedColours:
+            handle.write('\t'.join(map(str, row)))
+            handle.write('\n')
 
-            for j in range(bin_color_data.shape[1]):
-                if j == 0:
-                    cv2.line(img, (0, i * v), (width, i * v), (50, 50, 255), 2)
+    with open('out.g.txt', 'w') as handle:
+        handle.write(binnedGroups)
 
-                y = i * v + v / 2
-                x = j * h + h / 2
-                z = bin_color_data[i][j]
+    # if args.debug:
+        # for i in range(bin_color_data.shape[0]):
+            # cv2.line(img, (i * v, 0), (i * v, height), (50, 50, 255), 2)
 
-                # print i, j, x, y, z
-                pos_a = (int(x), int(y) + 10 * (j % 3))
-                pos = (int(x), int(y))
-                # cv2.circle(img, pos, 7, colors[z], -1)
-                # q = '.'.join([str(int(x)) for x in color_data[i][j]])
-                cv2.putText(img, str(int(z)), pos, font, 1, (0,0,0))
+            # for j in range(bin_color_data.shape[1]):
+                # if j == 0:
+                    # cv2.line(img, (0, i * v), (width, i * v), (50, 50, 255), 2)
 
-        plt.imshow(img)
-        plt.show()
+                # y = i * v + v / 2
+                # x = j * h + h / 2
+                # z = bin_color_data[i][j]
+
+                # # print i, j, x, y, z
+                # pos_a = (int(x), int(y) + 10 * (j % 3))
+                # pos = (int(x), int(y))
+                # # cv2.circle(img, pos, 7, colors[z], -1)
+                # # q = '.'.join([str(int(x)) for x in color_data[i][j]])
+                # cv2.putText(img, str(int(z)), pos, font, 1, (0,0,0))
+
+        # plt.imshow(img)
+        # plt.show()
