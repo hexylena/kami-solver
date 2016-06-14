@@ -2,6 +2,8 @@
 
 This tool aims to automatically solve puzzles from the game [Kami](http://www.stateofplaygames.com/work/kami/).
 
+[Demo Solution](http://erasche.github.io/kami-solver/)
+
 ## Process
 
 - [x] Detect rectangles
@@ -14,11 +16,9 @@ This tool aims to automatically solve puzzles from the game [Kami](http://www.st
 
     ![](./media/pick.png)
 
-- [ ] Accurately cluster those
+- [x] Accurately cluster those
 
     ![](./media/ex.png)
 
-- [ ] Build neighbour graph
-- [ ] Solve graph (bruteforce)
-
-
+- [x] Build neighbour graph
+- [x] Solve graph (bruteforce)
