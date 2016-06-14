@@ -6,7 +6,7 @@ function loadJSON(callback) {
     xobj.overrideMimeType("application/json");
 
     var data_path = location.search.split('url=')[1]
-    if(!data_path){ data_path = "force.json"; }
+    if(!data_path){ data_path = "0.json"; }
     xobj.open('GET', data_path, true);
     xobj.onreadystatechange = function () {
         if (xobj.readyState == 4 && xobj.status == "200") {
