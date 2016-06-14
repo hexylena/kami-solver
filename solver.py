@@ -1,5 +1,4 @@
 import argparse
-import copy
 import sys
 import scipy.spatial.distance as distance
 import networkx as nx
@@ -44,6 +43,9 @@ class Colour:
     def __eq__(self, other):
         return self.r == other.r and self.g == other.g and self.b == other.b
 
+    def __hash__(self):
+        return self.r << 16 & self.g << 8 & self.b
+
     def json(self):
         return [self.r, self.g, self.b]
 
@@ -75,40 +77,26 @@ def reduceGraph(graph):
     a_neighs.remove(equivalent_node_b)
     to_remove = []
     to_add = []
-    # print '\ta = ', equivalent_node_a
-    # print '\tb = ', equivalent_node_b, '(Being removed)'
     for b_neighbour in b_neighs:
-        # print b_neighbour, 'not in ', a_neighs, b_neighbour not in a_neighs
         if b_neighbour not in a_neighs:
             to_add.append((equivalent_node_a, b_neighbour))
 
         to_remove.append((equivalent_node_b, b_neighbour))
-        # print a_neighbour, a_neighbour in b_neighs
-        # print a_neighbour != equivalent_node_b
 
         # if a_neighbour not in b_neighs and \
                 # a_neighbour != equivalent_node_b:
             # to_add.append((a_neighbour, equivalent_node_b))
         # to_remove.append((a_neighbour, equivalent_node_a))
 
-    # print '\tto remove', ped(to_remove)
-    # print '\tto add', ped(to_add)
-    # print '\tnodes before', map(str, g.nodes())
-    # print '\tedges before', ped(g.edges())
     for (a, b) in to_remove:
         g.remove_edge(a, b)
 
     for (a, b) in to_add:
-        # print '\t\tAdding', a, b
         g.add_edge(a, b)
 
     equivalent_node_a.points += equivalent_node_b.points
     g.remove_node(equivalent_node_b)
 
-    # print '\tnodes after', map(str, g.nodes())
-    # print '\tedges after', ped(g.edges())
-
-    # return g
     return reduceGraph(g)
 
 
@@ -136,16 +124,33 @@ def serializeGraph(graph):
             'size': len(node.points),
         })
 
-    return json.dumps(data)
+    return data
 
 
-def solve(new_graph, path=0, solution=None):
+def solve(new_graph, path=0, solution=None, maxAcceptable=0):
+    if path > maxAcceptable:
+        return
+
+
+    colours_left = len(set([node.colour for node in new_graph.nodes()]))
+    distinct_groups = len(new_graph.nodes())
+    # We accept at most N moves.
+    # If we have gotten to a path of length N, then coloursLeft must == 1.
+
+    if not (maxAcceptable - path > colours_left - 2):
+        return
+    print 'path', path, 'mA', maxAcceptable, 'maP2', maxAcceptable - path, 'left', colours_left, 'dg', distinct_groups
+    print solution
+
+    # if path > 3:
+        # return (path, solution)
+
     # Start out by reducing same coloured nodes
     if len(new_graph.nodes()) == 1:
         return (path, solution)
 
     # Now we mutate
-    for node in list(new_graph.nodes()):
+    for node in list(sorted(new_graph.nodes())):
         # Get neighbours
         neighbours = list(nx.all_neighbors(new_graph, node))
         # And their colours
@@ -157,14 +162,10 @@ def solve(new_graph, path=0, solution=None):
             xnode = [x for x in tmp_graph if x.idx == node.idx][0]
             xnode.colour = colour
 
-            soln = copy.deepcopy(solution)
-            soln.append((node.idx, str(colour)))
-
             tmp_graph = reduceGraph(tmp_graph)
-            if len(new_graph.nodes()) == 1:
-                return new_graph, path, soln
-            else:
-                return solve(tmp_graph, path=path + 1, solution=soln)
+            x = solve(tmp_graph, path=path + 1, solution=solution + [(node.idx, colour, float(len(node.points))/1.6)], maxAcceptable=maxAcceptable)
+            if x is not None:
+                return x
 
 
 def solveGraph(data):
@@ -192,8 +193,13 @@ def solveGraph(data):
 
     # Initial reduction
     G = reduceGraph(G)
-    return solve(G, path=0, solution=[])
+    return G, solve(G, path=0, solution=[], maxAcceptable=8)
 
+def applyStep(graph, step):
+    node = [x for x in graph if x.idx == step[0]][0]
+    node.colour = step[1]
+    graph = reduceGraph(graph)
+    return graph
 
 if __name__ == '__main__':
     parser = argparse.ArgumentParser()
@@ -207,5 +213,10 @@ if __name__ == '__main__':
         colourData.append(map(int, data))
 
     parsedData = fromArrays(colourData, args.groupsData)
-    out = solveGraph(parsedData)
-    print out
+    original_graph, (path, solution) = solveGraph(parsedData)
+    data = [serializeGraph(original_graph)]
+    for step in solution:
+        original_graph = applyStep(original_graph, step)
+        data.append(serializeGraph(original_graph))
+
+    print json.dumps(data)
