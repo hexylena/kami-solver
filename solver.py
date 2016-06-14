@@ -69,7 +69,6 @@ def reduceGraph(graph):
     if equivalent_node_a is None:
         return g
 
-    # print equivalent_node_a, '==', equivalent_node_b
     # Otherwise, we need to make the processing and then return
     # reduceGraph(self) in case we missed any nodes (since we broke on first)
     a_neighs = list(nx.all_neighbors(g, equivalent_node_a))
@@ -133,6 +132,7 @@ def storeSolution(origGraph, solution, name_override=None):
     g = copy.deepcopy(origGraph)
     data = [serializeGraph(g)]
     for step in solution:
+        print step, [x.idx for x in g.nodes()]
         g = applyStep(g, step)
         g = reduceGraph(g)
         data.append(serializeGraph(g))
@@ -158,14 +158,9 @@ def solve(new_graph, solution=None, maxAcceptable=0, orig=None):
 
     if not (maxAcceptable - path > colours_left - 2):
         return
-    print 'path', path, 'mA', maxAcceptable, 'maP2', maxAcceptable - path, 'left', colours_left, 'dg', distinct_groups
-
-    if path == 4:
-        storeSolution(orig, solution)
 
     # Start out by reducing same coloured nodes
     if len(new_graph.nodes()) == 1:
-        print new_graph.nodes()
         return solution
 
     # Now we mutate
@@ -202,8 +197,8 @@ def solveGraph(data, steps=0):
             G.add_node(group)
 
     # Find touching groups
-    for node_a in G.nodes():
-        for node_b in G.nodes():
+    for node_a in sorted(G.nodes()):
+        for node_b in sorted(G.nodes()):
             if node_a == node_b:
                 continue
 
@@ -211,17 +206,26 @@ def solveGraph(data, steps=0):
                 G.add_edge(node_a, node_b)
 
     orig = copy.deepcopy(G)
-    biggestNode = max(G.nodes(), key=lambda x: len(x.points))
-    initialSolution = [
-        # (biggestNode.idx, Colour(255,238,0))
-    ]
+    initialSolution = []
+    # biggestNode = max(G.nodes(), key=lambda x: len(x.points))
+    # x73 = [node for node in G.nodes() if [3, 7] in node.points][0]
+    # initialSolution = [
+        # (x73.idx, Colour(0, 0, 0)),
+        # (x73.idx, Colour(0, 12, 255)),
+        # (32, Colour(255, 0, 0)),
+        # (1, Colour(255, 238, 0)),
+        # (1, Colour(255, 0, 0)),
+        # (0, Colour(0, 0, 0)),
+    # ]
+
     for step in initialSolution:
         applyStep(G, step)
         G = reduceGraph(G)
 
     # Initial reduction
     G = reduceGraph(G)
-    return G, solve(G, solution=initialSolution, maxAcceptable=steps, orig=orig)
+    return orig, solve(G, solution=initialSolution, maxAcceptable=steps, orig=orig)
+
 
 def applyStep(graph, step):
     node = [x for x in graph if x.idx == step[0]][0]
@@ -229,10 +233,6 @@ def applyStep(graph, step):
     graph = reduceGraph(graph)
     return graph
 
-def printSolution(solution):
-    print 'Solution'
-    for step in solution:
-        print '\tChange %s to %s' % step
 
 if __name__ == '__main__':
     parser = argparse.ArgumentParser()
