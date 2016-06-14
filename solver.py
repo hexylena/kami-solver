@@ -140,7 +140,6 @@ def solve(new_graph, path=0, solution=None, maxAcceptable=0):
     if not (maxAcceptable - path > colours_left - 2):
         return
     print 'path', path, 'mA', maxAcceptable, 'maP2', maxAcceptable - path, 'left', colours_left, 'dg', distinct_groups
-    print solution
 
     # if path > 3:
         # return (path, solution)

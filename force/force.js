@@ -92,7 +92,7 @@ function layoutData(node, json){
       .attr("class", "node")
       .attr("cx", function(d) { return d.x; })
       .attr("cy", function(d) { return d.y; })
-      .attr("r", function(d){ return Math.log10(d.size) * 10; })
+      .attr("r", function(d){ return Math.log10(d.size + 1) * 10; })
       .style("fill", function(d) {
           if(!d.colour){
                console.log(d);
