@@ -73,7 +73,7 @@ def get_inside_boxes(image, v, h):
         if len(row) > 0:
             data.append(row)
 
-    data = np.round(np.array(data), decimals=-1)
+    data = np.round(np.array(data), decimals=0)
     labels, numLabels = scipy.ndimage.label(data)
 
     return data
@@ -218,6 +218,7 @@ if __name__ == '__main__':
     parser.add_argument('--l2thresh', type=int, default=50)
     parser.add_argument('-vo', type=int, help="Override v", default=0)
     parser.add_argument('-ho', type=int, help="Oherride h", default=0)
+    parser.add_argument('--out_base', type=str)
 
 
     args = parser.parse_args()
@@ -248,32 +249,32 @@ if __name__ == '__main__':
     color_data = get_inside_boxes(gauss(img, size=20), v, h)
     binnedColours, binnedGroups = binData(color_data, bins=args.bins, l1thresh=args.l1thresh, l2thresh=args.l2thresh)
 
-    with open('out.c.txt', 'w') as handle:
+    with open(args.out_base + '.c.txt', 'w') as handle:
         for row in binnedColours:
             handle.write('\t'.join(map(str, row)))
             handle.write('\n')
 
-    with open('out.g.txt', 'w') as handle:
+    with open(args.out_base + '.g.txt', 'w') as handle:
         handle.write(binnedGroups)
 
-    # if args.debug:
-        # for i in range(bin_color_data.shape[0]):
-            # cv2.line(img, (i * v, 0), (i * v, height), (50, 50, 255), 2)
+    if args.debug:
+        for i in range(binnedColours.shape[0]):
+            cv2.line(img, (i * v, 0), (i * v, height), (50, 50, 255), 2)
 
-            # for j in range(bin_color_data.shape[1]):
-                # if j == 0:
-                    # cv2.line(img, (0, i * v), (width, i * v), (50, 50, 255), 2)
+            for j in range(binnedColours.shape[1]):
+                if j == 0:
+                    cv2.line(img, (0, i * v), (width, i * v), (50, 50, 255), 2)
 
-                # y = i * v + v / 2
-                # x = j * h + h / 2
-                # z = bin_color_data[i][j]
+                y = i * v + v / 2
+                x = j * h + h / 2
+                z = binnedColours[i][j]
 
-                # # print i, j, x, y, z
-                # pos_a = (int(x), int(y) + 10 * (j % 3))
-                # pos = (int(x), int(y))
-                # # cv2.circle(img, pos, 7, colors[z], -1)
-                # # q = '.'.join([str(int(x)) for x in color_data[i][j]])
-                # cv2.putText(img, str(int(z)), pos, font, 1, (0,0,0))
+                # print i, j, x, y, z
+                pos_a = (int(x), int(y) + 10 * (j % 3))
+                pos = (int(x), int(y))
+                # cv2.circle(img, pos, 7, colors[z], -1)
+                # q = '.'.join([str(int(x)) for x in color_data[i][j]])
+                cv2.putText(img, str(int(z)), pos, font, 2, (90,90,90), 2)
 
-        # plt.imshow(img)
-        # plt.show()
+        plt.imshow(img)
+        plt.show()

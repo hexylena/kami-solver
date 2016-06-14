@@ -1,15 +1,76 @@
-var w = 300,
-    h = 300;
+var w = 500,
+    h = 400;
 
-var vis = d3.select("#chart")
-  .append("svg:svg")
-    .attr("width", w)
-    .attr("height", h);
+function loadJSON(callback) {
+    var xobj = new XMLHttpRequest();
+    xobj.overrideMimeType("application/json");
+    xobj.open('GET', 'force.json', true);
+    xobj.onreadystatechange = function () {
+        if (xobj.readyState == 4 && xobj.status == "200") {
+            callback(xobj.responseText);
+        }
+    }
+    xobj.send(null);
+};
 
-d3.json("force.json", function(json) {
+loadJSON(function(response) {
+    var data = JSON.parse(response);
+    for(var i = 0; i < data.length; i++){
+        var node = $("#main").append('<div id="n' + i + '"></div>');
+        var d = $("#n" + i);
+        d.append('<h1>Step ' + i +'</h1>');
+
+        d.append('<div id="r' + i + '" class="row"></div>');
+        var r = $("#r" + i);
+        r.append('<div id="l' + i + '" class="col-md-6"><div id="c' + i + '"></div></div>');
+
+        var table = layoutTable(data[i]);
+
+        var n = $("#c" + i);
+        var x = layoutData(n[0], data[i]);
+
+        r.append('<div class="col-md-6">' +  table + '</div>');
+    }
+});
+
+function layoutTable(data){
+    table = {};
+
+    for(var i=0; i < data.nodes.length; i++){
+        // group
+        var rgb = data.nodes[i].colour;
+        for(var j=0; j<data.nodes[i].points.length; j++){
+            var point = data.nodes[i].points[j],
+                a = point[0],
+                b = point[1];
+
+            if(!table[a]){ table[a] = {}; }
+            table[a][b] = rgb
+        }
+    }
+    tableString = "<table>"
+
+    Object.keys(table).forEach(function(i) {
+        var row = "<tr>";
+        Object.keys(table[i]).forEach(function(j) {
+            var colour = "rgb(" + table[i][j][0] + "," + table[i][j][1] + "," + table[i][j][2] + ")"
+            row = row + '<td><span style="background:' + colour + ';padding:10px;"></span></td>'
+        });
+        tableString = tableString + row + "</tr>\n";
+    });
+
+    return tableString + "</table>"
+}
+
+function layoutData(node, json){
+  var vis = d3.select(node)
+    .append("svg:svg")
+      .attr("width", w)
+      .attr("height", h);
+
   var force = d3.layout.force()
       .charge(-80)
-      .linkDistance(120)
+      .linkDistance(30)
       .nodes(json.nodes)
       .links(json.links)
       .size([w, h])
@@ -57,4 +118,4 @@ d3.json("force.json", function(json) {
     node.attr("cx", function(d) { return d.x; })
         .attr("cy", function(d) { return d.y; });
   });
-});
+};
