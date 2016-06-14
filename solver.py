@@ -1,8 +1,10 @@
 import argparse
 import sys
+import copy
 import scipy.spatial.distance as distance
 import networkx as nx
 import json
+import time
 from networkx.readwrite import json_graph
 from kami import fromArrays
 
@@ -127,7 +129,18 @@ def serializeGraph(graph):
     return data
 
 
-def solve(new_graph, path=0, solution=None, maxAcceptable=0):
+def storeSolution(origGraph, solution):
+    g = copy.deepcopy(origGraph)
+    data = [serializeGraph(g)]
+    for step in solution:
+        original_graph = applyStep(g, step)
+        data.append(serializeGraph(g))
+
+    with open('force/out.%s.json' % int(time.time()), 'w') as handle:
+        handle.write(json.dumps(data))
+
+
+def solve(new_graph, path=0, solution=None, maxAcceptable=0, orig=None):
     if path > maxAcceptable:
         return
 
@@ -141,8 +154,8 @@ def solve(new_graph, path=0, solution=None, maxAcceptable=0):
         return
     print 'path', path, 'mA', maxAcceptable, 'maP2', maxAcceptable - path, 'left', colours_left, 'dg', distinct_groups
 
-    # if path > 3:
-        # return (path, solution)
+    if path == 4:
+        storeSolution(orig, solution)
 
     # Start out by reducing same coloured nodes
     if len(new_graph.nodes()) == 1:
@@ -162,7 +175,7 @@ def solve(new_graph, path=0, solution=None, maxAcceptable=0):
             xnode.colour = colour
 
             tmp_graph = reduceGraph(tmp_graph)
-            x = solve(tmp_graph, path=path + 1, solution=solution + [(node.idx, colour, float(len(node.points))/1.6)], maxAcceptable=maxAcceptable)
+            x = solve(tmp_graph, path=path + 1, solution=solution + [(node.idx, colour, float(len(node.points))/1.6)], maxAcceptable=maxAcceptable, orig=orig)
             if x is not None:
                 return x
 
@@ -192,7 +205,7 @@ def solveGraph(data):
 
     # Initial reduction
     G = reduceGraph(G)
-    return G, solve(G, path=0, solution=[], maxAcceptable=8)
+    return G, solve(G, path=0, solution=[], maxAcceptable=8, orig=G)
 
 def applyStep(graph, step):
     node = [x for x in graph if x.idx == step[0]][0]
