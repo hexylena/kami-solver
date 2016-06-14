@@ -4,7 +4,10 @@ var w = 500,
 function loadJSON(callback) {
     var xobj = new XMLHttpRequest();
     xobj.overrideMimeType("application/json");
-    xobj.open('GET', 'force.json', true);
+
+    var data_path = location.search.split('url=')[1]
+    if(!data_path){ data_path = "force.json"; }
+    xobj.open('GET', data_path, true);
     xobj.onreadystatechange = function () {
         if (xobj.readyState == 4 && xobj.status == "200") {
             callback(xobj.responseText);
