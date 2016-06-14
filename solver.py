@@ -129,18 +129,24 @@ def serializeGraph(graph):
     return data
 
 
-def storeSolution(origGraph, solution):
+def storeSolution(origGraph, solution, name_override=None):
     g = copy.deepcopy(origGraph)
     data = [serializeGraph(g)]
     for step in solution:
-        original_graph = applyStep(g, step)
+        g = applyStep(g, step)
+        g = reduceGraph(g)
         data.append(serializeGraph(g))
 
-    with open('force/out.%s.json' % int(time.time()), 'w') as handle:
+    name = 'out.%s.json' % int(time.time())
+    if name_override:
+        name = name_override
+
+    with open('force/' + name, 'w') as handle:
         handle.write(json.dumps(data))
 
 
-def solve(new_graph, path=0, solution=None, maxAcceptable=0, orig=None):
+def solve(new_graph, solution=None, maxAcceptable=0, orig=None):
+    path = len(solution)
     if path > maxAcceptable:
         return
 
@@ -159,7 +165,8 @@ def solve(new_graph, path=0, solution=None, maxAcceptable=0, orig=None):
 
     # Start out by reducing same coloured nodes
     if len(new_graph.nodes()) == 1:
-        return (path, solution)
+        print new_graph.nodes()
+        return solution
 
     # Now we mutate
     for node in list(sorted(new_graph.nodes())):
@@ -175,12 +182,12 @@ def solve(new_graph, path=0, solution=None, maxAcceptable=0, orig=None):
             xnode.colour = colour
 
             tmp_graph = reduceGraph(tmp_graph)
-            x = solve(tmp_graph, path=path + 1, solution=solution + [(node.idx, colour, float(len(node.points))/1.6)], maxAcceptable=maxAcceptable, orig=orig)
+            x = solve(tmp_graph, solution=solution + [(node.idx, colour)], maxAcceptable=maxAcceptable, orig=orig)
             if x is not None:
                 return x
 
 
-def solveGraph(data):
+def solveGraph(data, steps=0):
     G = nx.Graph()
     i = 0
     for colourGroup in data:
@@ -203,9 +210,18 @@ def solveGraph(data):
             if node_a.touches(node_b):
                 G.add_edge(node_a, node_b)
 
+    orig = copy.deepcopy(G)
+    biggestNode = max(G.nodes(), key=lambda x: len(x.points))
+    initialSolution = [
+        # (biggestNode.idx, Colour(255,238,0))
+    ]
+    for step in initialSolution:
+        applyStep(G, step)
+        G = reduceGraph(G)
+
     # Initial reduction
     G = reduceGraph(G)
-    return G, solve(G, path=0, solution=[], maxAcceptable=8, orig=G)
+    return G, solve(G, solution=initialSolution, maxAcceptable=steps, orig=orig)
 
 def applyStep(graph, step):
     node = [x for x in graph if x.idx == step[0]][0]
@@ -213,10 +229,16 @@ def applyStep(graph, step):
     graph = reduceGraph(graph)
     return graph
 
+def printSolution(solution):
+    print 'Solution'
+    for step in solution:
+        print '\tChange %s to %s' % step
+
 if __name__ == '__main__':
     parser = argparse.ArgumentParser()
     parser.add_argument('colourData', type=argparse.FileType('r'), help="Path to X.c.txt data")
     parser.add_argument('groupsData', type=argparse.FileType('r'), help="Path to X.g.txt data")
+    parser.add_argument('--steps', type=int, default=5)
     args = parser.parse_args()
 
     colourData = []
@@ -225,10 +247,6 @@ if __name__ == '__main__':
         colourData.append(map(int, data))
 
     parsedData = fromArrays(colourData, args.groupsData)
-    original_graph, (path, solution) = solveGraph(parsedData)
-    data = [serializeGraph(original_graph)]
-    for step in solution:
-        original_graph = applyStep(original_graph, step)
-        data.append(serializeGraph(original_graph))
+    original_graph, solution = solveGraph(parsedData, steps=args.steps)
 
-    print json.dumps(data)
+    storeSolution(original_graph, solution, name_override='final.json')
