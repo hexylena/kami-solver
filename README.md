@@ -21,4 +21,7 @@ This tool aims to automatically solve puzzles from the game [Kami](http://www.st
     ![](./media/ex.png)
 
 - [x] Build neighbour graph
+
+    ![](./media/graph.png)
+
 - [x] Solve graph (bruteforce)
