@@ -2,7 +2,7 @@
 
 This tool aims to automatically solve puzzles from the game [Kami](http://www.stateofplaygames.com/work/kami/).
 
-[Demo Solution](http://erasche.github.io/kami-solver/)
+[Demo Solution](http://hexylena.github.io/kami-solver/)
 
 ## Process
 
